@@ -14,15 +14,18 @@ When you correct Claude Code during a session ("no, use gpt-5.1 not gpt-5", "use
       (automatic)            (automatic)            (manual review)
 ```
 
-## Quick Start
+## Installation
 
 ```bash
-git clone https://github.com/bayramannakov/claude-reflect.git
-cd claude-reflect
-./install.sh
+/plugin install bayramannakov/claude-reflect
 ```
 
-Then configure hooks (see below) and restart Claude Code.
+That's it! Hooks auto-configure, commands are ready to use.
+
+### Prerequisites
+
+- [Claude Code](https://claude.ai/code) CLI installed
+- `jq` for JSON processing (`brew install jq` on macOS)
 
 ## Commands
 
@@ -90,125 +93,31 @@ Approved learnings are added to:
 - `~/.claude/CLAUDE.md` (global - applies to all projects)
 - `./CLAUDE.md` (project-specific)
 
-## Installation
-
-### Prerequisites
-
-- [Claude Code](https://claude.ai/code) CLI installed
-- `jq` for JSON processing (`brew install jq` on macOS)
-
-### Option 1: Quick Install (Recommended)
-
-```bash
-git clone https://github.com/bayramannakov/claude-reflect.git
-cd claude-reflect
-./install.sh
-```
-
-### Option 2: Install as Claude Code Plugin
-
-This repository is packaged as a Claude Code plugin. You can also install it using Claude Code's plugin system:
-
-```bash
-# Navigate to the repo
-cd /path/to/claude-reflect
-
-# Claude Code will detect the .claude-plugin/plugin.json manifest
-# and make the commands available when you're in this directory
-
-# To install globally, run:
-./install.sh
-```
-
-The plugin manifest (`.claude-plugin/plugin.json`) enables:
-- Discoverability in community catalogs (SkillsMP, awesome-claude-skills)
-- Automatic skill context via `SKILL.md`
-- Standardized metadata for sharing
-
-### Configure Hooks
-
-Add to your `~/.claude/settings.json`:
-
-```json
-{
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "matcher": "",
-        "hooks": ["~/.claude/scripts/capture-learning.sh"]
-      }
-    ],
-    "PreCompact": [
-      {
-        "matcher": "",
-        "hooks": ["~/.claude/scripts/check-learnings.sh"]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": ["~/.claude/scripts/post-commit-reminder.sh"]
-      }
-    ]
-  }
-}
-```
-
-**Hook explanations:**
-- **UserPromptSubmit**: Captures corrections as you type them
-- **PreCompact**: Reminds you to process learnings before context compaction
-- **PostToolUse (Bash)**: Reminds you to reflect after git commits
-
-### Restart Claude Code
-
-```bash
-# Exit current session
-/exit
-
-# Start a new session
-claude
-```
-
 ## Uninstall
 
 ```bash
-cd claude-reflect
-./uninstall.sh
+/plugin uninstall claude-reflect
 ```
-
-Then remove the hooks from `~/.claude/settings.json`.
 
 ## File Structure
 
-**Repository:**
 ```
 claude-reflect/
-├── SKILL.md                # Skill definition (auto-context for Claude)
 ├── .claude-plugin/
-│   └── plugin.json         # Plugin manifest for registries
+│   └── plugin.json         # Plugin manifest (auto-registers hooks)
 ├── commands/
 │   ├── reflect.md          # Main command
 │   ├── skip-reflect.md     # Discard queue
 │   └── view-queue.md       # View queue
-├── scripts/                # Hooks and utilities
-└── hooks/
-    └── hooks-example.json  # Hook configuration template
-```
-
-**After installation (~/.claude/):**
-```
-~/.claude/
-├── commands/
-│   ├── reflect.md          # Main command
-│   ├── skip-reflect.md     # Discard queue
-│   └── view-queue.md       # View queue
+├── hooks/
+│   └── hooks.json          # Auto-configured when plugin installed
 ├── scripts/
 │   ├── capture-learning.sh       # Hook: detect corrections
-│   ├── extract-session-learnings.sh
-│   ├── extract-tool-rejections.sh
 │   ├── check-learnings.sh        # Hook: pre-compact check
-│   └── post-commit-reminder.sh   # Hook: post-commit reminder
-└── learnings-queue.json    # Pending learnings
+│   ├── post-commit-reminder.sh   # Hook: post-commit reminder
+│   ├── extract-session-learnings.sh
+│   └── extract-tool-rejections.sh
+└── SKILL.md                # Skill context for Claude
 ```
 
 ## Features

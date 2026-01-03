@@ -16,6 +16,33 @@ allowed-tools: Read, Edit, Write, Glob, Bash, Grep, AskUserQuestion
 
 ## Your Task
 
+### First-Run Detection
+
+Check if this is the first time /reflect is being run:
+
+```bash
+test -f ~/.claude/reflect-initialized && echo "initialized" || echo "first-run"
+```
+
+**If "first-run" AND user did NOT pass `--scan-history`:**
+
+Use AskUserQuestion to recommend historical scan:
+```json
+{
+  "questions": [{
+    "question": "This appears to be your first time running /reflect. Would you like to scan your past sessions for learnings?",
+    "header": "First run",
+    "multiSelect": false,
+    "options": [
+      {"label": "Yes, scan history (Recommended)", "description": "Scan past sessions for corrections you made before installing claude-reflect"},
+      {"label": "No, just process queue", "description": "Only process learnings captured since installation"}
+    ]
+  }]
+}
+```
+
+If user chooses "Yes, scan history", proceed as if `--scan-history` was passed.
+
 ### Step 0: Check Arguments
 
 **If user passed `--dry-run`:**
@@ -406,6 +433,14 @@ DONE: Applied [N] learnings
   Global:  [N] entries added/updated
   Skipped: [N]
 ════════════════════════════════════════════════════════════
+```
+
+### Step 10: Mark Initialized
+
+Create marker file so first-run detection won't trigger again:
+
+```bash
+touch ~/.claude/reflect-initialized
 ```
 
 ## Formatting Rules
