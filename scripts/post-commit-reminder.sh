@@ -1,5 +1,5 @@
 #!/bin/bash
-# Checks if a git commit just happened and reminds about /learn
+# Checks if a git commit just happened and reminds about /reflect
 # Used by PostToolUse hook for Bash tool
 
 QUEUE_FILE="$HOME/.claude/learnings-queue.json"
@@ -30,7 +30,7 @@ if [[ "$COMMAND" == *"git commit"* ]]; then
     fi
   fi
 
-  echo "  Feature complete? Run /learn to capture learnings."
+  echo "  Feature complete? Run /reflect to process learnings."
   echo "========================================"
   echo ""
 fi

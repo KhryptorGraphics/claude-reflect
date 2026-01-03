@@ -11,6 +11,12 @@
         "matcher": "",
         "hooks": ["~/.claude/scripts/check-learnings.sh"]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": ["~/.claude/scripts/post-commit-reminder.sh"]
+      }
     ]
   }
 }

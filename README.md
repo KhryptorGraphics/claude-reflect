@@ -9,8 +9,9 @@ When you correct Claude Code during a session ("no, use gpt-5.1 not gpt-5", "use
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │  You correct    │ ──► │  Hook captures  │ ──► │  /reflect adds  │
-│  Claude Code    │     │  the learning   │     │  to CLAUDE.md   │
+│  Claude Code    │     │  to queue       │     │  to CLAUDE.md   │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
+      (automatic)            (automatic)            (manual review)
 ```
 
 ## Quick Start
@@ -35,19 +36,33 @@ Then configure hooks (see below) and restart Claude Code.
 
 ## How It Works
 
-### 1. Real-time Capture
+### Two-Stage Process
 
-A hook runs on every prompt, detecting correction patterns like:
-- "use X not Y"
-- "don't use Z"
-- "actually, the API returns..."
-- "remember: always do X"
+**Stage 1: Capture (Automatic)**
 
-### 2. Queue Accumulation
+Hooks run automatically to detect and queue corrections:
 
-Detected corrections are stored in `~/.claude/learnings-queue.json`.
+| Hook | Trigger | Purpose |
+|------|---------|---------|
+| `capture-learning.sh` | Every prompt | Detects correction patterns and queues them |
+| `check-learnings.sh` | Before compaction | Blocks compaction if queue has items |
+| `post-commit-reminder.sh` | After git commit | Reminds to run /reflect after completing work |
 
-### 3. Human Review
+**Stage 2: Process (Manual)**
+
+Run `/reflect` to review and apply queued learnings to CLAUDE.md.
+
+### Correction Detection
+
+The capture hook detects patterns like:
+- `"no, use X"` / `"don't use Y"`
+- `"actually..."` / `"I meant..."`
+- `"use X not Y"` / `"X instead of Y"`
+- `"remember:"` (explicit learning marker)
+
+Tool rejections (when you stop Claude mid-action) are the highest confidence signals.
+
+### Human Review
 
 When you run `/reflect`, Claude presents a summary table:
 
@@ -69,7 +84,7 @@ You choose:
 - **Select which** - Pick specific learnings
 - **Review details** - See full context before deciding
 
-### 4. CLAUDE.md Updates
+### CLAUDE.md Updates
 
 Approved learnings are added to:
 - `~/.claude/CLAUDE.md` (global - applies to all projects)
@@ -108,10 +123,21 @@ Add to your `~/.claude/settings.json`:
         "matcher": "",
         "hooks": ["~/.claude/scripts/check-learnings.sh"]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": ["~/.claude/scripts/post-commit-reminder.sh"]
+      }
     ]
   }
 }
 ```
+
+**Hook explanations:**
+- **UserPromptSubmit**: Captures corrections as you type them
+- **PreCompact**: Reminds you to process learnings before context compaction
+- **PostToolUse (Bash)**: Reminds you to reflect after git commits
 
 ### Restart Claude Code
 
@@ -145,20 +171,11 @@ Then remove the hooks from `~/.claude/settings.json`.
 │   ├── extract-session-learnings.sh
 │   ├── extract-tool-rejections.sh
 │   ├── check-learnings.sh        # Hook: pre-compact check
-│   └── post-commit-reminder.sh
+│   └── post-commit-reminder.sh   # Hook: post-commit reminder
 └── learnings-queue.json    # Pending learnings
 ```
 
 ## Features
-
-### Correction Detection Patterns
-
-The capture hook detects:
-- `"no, use X"` / `"don't use Y"`
-- `"actually..."` / `"I meant..."`
-- `"use X not Y"` / `"X instead of Y"`
-- `"remember:"` (explicit learning marker)
-- Tool rejections (highest confidence)
 
 ### Historical Scan
 
@@ -194,7 +211,7 @@ Before adding a learning, existing CLAUDE.md content is checked. If similar cont
    remember: always use venv for Python projects
    ```
 
-2. **Run /reflect regularly** - Weekly is a good cadence
+2. **Run /reflect after git commits** - The hook reminds you, but make it a habit
 
 3. **Historical scan on new machines** - When setting up a new dev environment:
    ```
