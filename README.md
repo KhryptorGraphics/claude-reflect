@@ -97,13 +97,33 @@ Approved learnings are added to:
 - [Claude Code](https://claude.ai/code) CLI installed
 - `jq` for JSON processing (`brew install jq` on macOS)
 
-### Install
+### Option 1: Quick Install (Recommended)
 
 ```bash
 git clone https://github.com/bayramannakov/claude-reflect.git
 cd claude-reflect
 ./install.sh
 ```
+
+### Option 2: Install as Claude Code Plugin
+
+This repository is packaged as a Claude Code plugin. You can also install it using Claude Code's plugin system:
+
+```bash
+# Navigate to the repo
+cd /path/to/claude-reflect
+
+# Claude Code will detect the .claude-plugin/plugin.json manifest
+# and make the commands available when you're in this directory
+
+# To install globally, run:
+./install.sh
+```
+
+The plugin manifest (`.claude-plugin/plugin.json`) enables:
+- Discoverability in community catalogs (SkillsMP, awesome-claude-skills)
+- Automatic skill context via `SKILL.md`
+- Standardized metadata for sharing
 
 ### Configure Hooks
 

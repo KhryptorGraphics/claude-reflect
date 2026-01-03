@@ -35,12 +35,45 @@ Scan past sessions for corrections missed by hooks. Useful for:
 - First-time /reflect installation (cold start)
 - Periodic deep review of past learnings
 
-**0.5a. Find all session files for this project:**
-```bash
-PROJECT_PATH=$(pwd | sed 's|/|-|g')
-# Get modification times and filter by --days if specified
-find ~/.claude/projects/"$PROJECT_PATH" -name "*.jsonl" -type f
-```
+**0.5a. Find ALL session files for this project:**
+
+1. First, list project folders to find the correct path pattern:
+   ```bash
+   ls ~/.claude/projects/ | grep -i "$(basename $(pwd))"
+   ```
+
+2. Then list ALL session files in that folder:
+   ```bash
+   ls ~/.claude/projects/[PROJECT_FOLDER]/*.jsonl
+   ```
+
+Note: Project paths have `/` replaced with `-`. For `/Users/bob/code/myapp`, look for `-Users-bob-code-myapp`.
+
+**IMPORTANT**: With `--scan-history`, process ALL session files (not just recent ones). This includes:
+- Main session files (UUID format like `fa5ae539-d170-4fa8-a8d2-bf50b3ec2861.jsonl`)
+- Agent files (`agent-*.jsonl`) - these may contain corrections too
+- Apply `--days N` filter by checking file modification times if specified
+
+**0.5a-note. Handling Large Session Files:**
+
+Session files can be very large (>25000 tokens). DO NOT use the Read tool on them directly.
+
+Instead:
+1. **Use Grep tool** to search for correction patterns:
+   ```
+   Grep(pattern: "no,? use|don't use|actually|remember:", path: "[SESSION_FILE]", output_mode: "content")
+   ```
+
+2. **Use extraction scripts** which handle large files efficiently (streaming jq parser):
+   ```bash
+   ~/.claude/scripts/extract-session-learnings.sh "[SESSION_FILE]" --corrections-only
+   ~/.claude/scripts/extract-tool-rejections.sh "[SESSION_FILE]"
+   ```
+
+3. If you must read file content, use **offset/limit**:
+   ```
+   Read(file_path: "[SESSION_FILE]", offset: 0, limit: 500)
+   ```
 
 **0.5b. For each session file, extract corrections:**
 ```bash
@@ -97,15 +130,24 @@ For each ACCEPTED correction, create:
 
 ### Step 2: Session Reflection (Enhanced with History Analysis)
 
+**Note**: This step is for analyzing the CURRENT session only (when NOT using `--scan-history`).
+If `--scan-history` was passed, skip to Step 3 with results from Step 0.5.
+
 Analyze the current session for corrections missed by real-time hooks:
 
 **2a. Find current session file:**
+
+List session files for this project (most recent first):
 ```bash
-# Get encoded project path (replace / with -)
-PROJECT_PATH=$(pwd | sed 's|/|-|g')
-# Find most recent session file for this project
-SESSION_FILE=$(ls -t ~/.claude/projects/"$PROJECT_PATH"/*.jsonl 2>/dev/null | head -1)
+ls -lt ~/.claude/projects/ | grep -i "$(basename $(pwd))"
 ```
+
+Then list files in that folder and pick the most recent non-agent file:
+```bash
+ls -lt ~/.claude/projects/[PROJECT_FOLDER]/*.jsonl | head -5
+```
+
+Agent files (`agent-*.jsonl`) are sub-conversations; focus on main session files for current session analysis.
 
 **2b. Extract tool rejections (HIGH confidence corrections):**
 ```bash
