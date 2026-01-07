@@ -103,25 +103,14 @@ Each captured learning has a **confidence score** (0.60-0.95). The final score i
 
 ### Human Review
 
-When you run `/reflect`, Claude presents a summary table:
+When you run `/reflect`, Claude presents a summary table with options to apply, edit, or skip each learning:
 
-```
-════════════════════════════════════════════════════════════
-LEARNINGS SUMMARY — 5 items found
-════════════════════════════════════════════════════════════
-
-┌────┬─────────────────────────────────────────┬──────────┬────────┐
-│ #  │ Learning                                │ Scope    │ Status │
-├────┼─────────────────────────────────────────┼──────────┼────────┤
-│ 1  │ Use gpt-5.1 for reasoning tasks         │ global   │ ✓ new  │
-│ 2  │ Database for persistent storage         │ project  │ ✓ new  │
-└────┴─────────────────────────────────────────┴──────────┴────────┘
-```
+![claude-reflect in action](assets/reflect-demo.jpg)
 
 You choose:
-- **Apply all** - Accept recommended changes
-- **Select which** - Pick specific learnings
-- **Review details** - See full context before deciding
+- **Apply** - Accept the learning and add to CLAUDE.md
+- **Edit before applying** - Modify the learning text first
+- **Skip** - Don't apply this learning
 
 ### Multi-Target Sync
 
