@@ -47,6 +47,7 @@ These are the **same pattern** despite different wording.
   "todos": [
     {"content": "Parse arguments", "status": "in_progress", "activeForm": "Parsing command arguments"},
     {"content": "Gather session data", "status": "pending", "activeForm": "Reading session files"},
+    {"content": "Check existing commands", "status": "pending", "activeForm": "Checking existing commands"},
     {"content": "Analyze for patterns", "status": "pending", "activeForm": "Analyzing sessions for patterns"},
     {"content": "Propose skill candidates", "status": "pending", "activeForm": "Proposing skill candidates"},
     {"content": "Assign skills to projects", "status": "pending", "activeForm": "Assigning skills to projects"},
@@ -109,6 +110,24 @@ The extraction script handles:
 - User prompts (natural language requests)
 - Sequences of tool calls that followed
 - Any corrections or clarifications
+
+### Step 3b: Check Existing Commands
+
+Before analyzing patterns, discover what skills already exist:
+
+```bash
+# Check current project
+ls .claude/commands/*.md 2>/dev/null | xargs -I{} basename {} .md
+
+# Check global commands
+ls ~/.claude/commands/*.md 2>/dev/null | xargs -I{} basename {} .md
+```
+
+Store the list of existing command names. During pattern analysis (Step 4), if a pattern's suggested name matches an existing command:
+- **Skip it** from the NEW candidates list
+- Show it in "Existing skills (patterns match)" section
+
+This prevents proposing duplicates.
 
 ### Step 4: Analyze for Patterns (AI-Powered)
 
@@ -173,7 +192,11 @@ Present discovered patterns to the user:
 SKILL CANDIDATES DISCOVERED
 ════════════════════════════════════════════════════════════
 
-Found [N] potential skills from analyzing [M] sessions:
+Existing skills (patterns match existing commands):
+- /campaign-analytics (already in .claude/commands/)
+- /zettel-update (already in .claude/commands/)
+
+NEW skill candidates from analyzing [M] sessions:
 
 1. /[skill-name] (Confidence: High) — from [project-name]
    → [One-line description]
@@ -185,6 +208,9 @@ Found [N] potential skills from analyzing [M] sessions:
 
 ════════════════════════════════════════════════════════════
 ```
+
+**Note:** If all discovered patterns match existing commands, inform the user:
+> "All discovered patterns already have corresponding skills. No new skills to propose."
 
 Use AskUserQuestion to get feedback:
 - Which patterns should become skills?
