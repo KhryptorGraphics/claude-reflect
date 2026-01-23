@@ -62,6 +62,11 @@ def main() -> int:
         items.append(queue_item)
         save_queue(items)
 
+        # Output feedback for Claude to acknowledge the capture
+        # UserPromptSubmit hooks with exit code 0 add stdout as context
+        preview = prompt[:40] + "..." if len(prompt) > 40 else prompt
+        print(f"📝 Learning captured: '{preview}' (confidence: {confidence:.0%})")
+
     return 0
 
 

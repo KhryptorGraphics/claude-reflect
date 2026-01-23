@@ -200,6 +200,20 @@ CORRECTION_PATTERNS = [
     (r"use .{1,30} not\b", "use-X-not-Y", True),  # "use X not Y" - limited gap
 ]
 
+# Guardrail patterns - "don't do X unless" constraints (highest confidence for corrections)
+# These detect user frustrations about Claude making unwanted changes
+# Format: (regex_pattern, pattern_name, confidence, decay_days)
+GUARDRAIL_PATTERNS = [
+    (r"don't (?:add|include|create) .{1,40} unless", "dont-unless-asked", 0.90, 120),
+    (r"only (?:change|modify|edit|touch) what I (?:asked|requested|said)", "only-what-asked", 0.90, 120),
+    (r"stop (?:refactoring|changing|modifying|editing) (?:unrelated|other|surrounding)", "stop-unrelated", 0.90, 120),
+    (r"don't (?:over-engineer|add extra|be too|make unnecessary)", "dont-over-engineer", 0.85, 90),
+    (r"don't (?:refactor|reorganize|restructure) (?:unless|without)", "dont-refactor-unless", 0.85, 90),
+    (r"leave .{1,30} (?:alone|unchanged|as is)", "leave-alone", 0.85, 90),
+    (r"don't (?:add|include) (?:comments|docstrings|type hints|annotations) (?:unless|to code)", "dont-add-annotations", 0.85, 90),
+    (r"(?:minimal|minimum|only necessary) changes", "minimal-changes", 0.80, 90),
+]
+
 # Structural patterns indicating FALSE POSITIVES (language-agnostic)
 # These focus on MESSAGE STRUCTURE rather than specific words
 FALSE_POSITIVE_PATTERNS = [
@@ -226,7 +240,7 @@ def detect_patterns(text: str) -> Tuple[Optional[str], str, float, str, int]:
 
     Returns:
         Tuple of (type, matched_patterns, confidence, sentiment, decay_days)
-        type: "explicit", "positive", "auto", or None
+        type: "explicit", "positive", "auto", "guardrail", or None
         matched_patterns: Space-separated pattern names
         confidence: 0.0 to 1.0
         sentiment: "correction" or "positive"
@@ -236,6 +250,12 @@ def detect_patterns(text: str) -> Tuple[Optional[str], str, float, str, int]:
     for pattern, name, confidence, decay in EXPLICIT_PATTERNS:
         if re.search(pattern, text, re.IGNORECASE):
             return ("explicit", name, confidence, "correction", decay)
+
+    # Check for guardrail patterns - "don't do X unless" constraints
+    # These are high-confidence corrections about unwanted behavior
+    for pattern, name, confidence, decay in GUARDRAIL_PATTERNS:
+        if re.search(pattern, text, re.IGNORECASE):
+            return ("guardrail", name, confidence, "correction", decay)
 
     # Check for FALSE POSITIVE patterns - skip these messages
     for fp_pattern in FALSE_POSITIVE_PATTERNS:

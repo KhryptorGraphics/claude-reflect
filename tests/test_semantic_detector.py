@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 from lib.semantic_detector import (
     semantic_analyze,
     validate_queue_items,
+    detect_contradictions,
     _extract_json_from_text,
     _validate_response,
     ANALYSIS_PROMPT,
@@ -577,6 +578,150 @@ class TestAnalysisPrompt(unittest.TestCase):
         """Test that prompt can be formatted with text."""
         formatted = ANALYSIS_PROMPT.format(text="test message")
         self.assertIn("test message", formatted)
+
+
+class TestDetectContradictions(unittest.TestCase):
+    """Tests for detect_contradictions function."""
+
+    def _mock_claude_response(self, response_dict):
+        """Create a mock subprocess result with Claude-like JSON output."""
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = json.dumps(response_dict)
+        mock_result.stderr = ""
+        return mock_result
+
+    def test_empty_entries_list(self):
+        """Test that empty entries return empty list."""
+        result = detect_contradictions([])
+        self.assertEqual(result, [])
+
+    def test_single_entry_returns_empty(self):
+        """Test that single entry returns empty list (can't contradict itself)."""
+        result = detect_contradictions(["Use tabs for indentation"])
+        self.assertEqual(result, [])
+
+    @patch("lib.semantic_detector.subprocess.run")
+    def test_detects_contradiction(self, mock_run):
+        """Test successful detection of contradicting entries."""
+        mock_run.return_value = self._mock_claude_response({
+            "contradictions": [
+                {
+                    "entry1": "Use tabs for indentation",
+                    "entry2": "Use spaces for indentation",
+                    "conflict": "opposite indentation preferences"
+                }
+            ]
+        })
+
+        entries = [
+            "Use tabs for indentation",
+            "Use spaces for indentation",
+            "Use gpt-5.1 for reasoning"
+        ]
+
+        result = detect_contradictions(entries)
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["entry1"], "Use tabs for indentation")
+        self.assertEqual(result[0]["entry2"], "Use spaces for indentation")
+        self.assertIn("indentation", result[0]["conflict"])
+
+    @patch("lib.semantic_detector.subprocess.run")
+    def test_no_contradictions_found(self, mock_run):
+        """Test when no contradictions are found."""
+        mock_run.return_value = self._mock_claude_response({
+            "contradictions": []
+        })
+
+        entries = [
+            "Use gpt-5.1 for reasoning",
+            "Use venv for Python projects",
+            "Always run tests before committing"
+        ]
+
+        result = detect_contradictions(entries)
+        self.assertEqual(result, [])
+
+    @patch("lib.semantic_detector.subprocess.run")
+    def test_handles_wrapped_response(self, mock_run):
+        """Test handling of JSON wrapped in 'result' field."""
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = json.dumps({
+            "result": {
+                "contradictions": [
+                    {
+                        "entry1": "Always use TypeScript",
+                        "entry2": "Prefer JavaScript over TypeScript",
+                        "conflict": "conflicting language preferences"
+                    }
+                ]
+            }
+        })
+        mock_result.stderr = ""
+        mock_run.return_value = mock_result
+
+        entries = ["Always use TypeScript", "Prefer JavaScript over TypeScript"]
+        result = detect_contradictions(entries)
+
+        self.assertEqual(len(result), 1)
+
+    @patch("lib.semantic_detector.subprocess.run")
+    def test_cli_error_returns_empty(self, mock_run):
+        """Test that CLI errors return empty list."""
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        mock_result.stdout = ""
+        mock_result.stderr = "Error"
+        mock_run.return_value = mock_result
+
+        entries = ["Use tabs", "Use spaces"]
+        result = detect_contradictions(entries)
+
+        self.assertEqual(result, [])
+
+    @patch("lib.semantic_detector.subprocess.run")
+    def test_timeout_returns_empty(self, mock_run):
+        """Test that timeout returns empty list."""
+        mock_run.side_effect = subprocess.TimeoutExpired(cmd="claude", timeout=30)
+
+        entries = ["Use tabs", "Use spaces"]
+        result = detect_contradictions(entries)
+
+        self.assertEqual(result, [])
+
+    @patch("lib.semantic_detector.subprocess.run")
+    def test_invalid_json_returns_empty(self, mock_run):
+        """Test that invalid JSON returns empty list."""
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "Not valid JSON"
+        mock_result.stderr = ""
+        mock_run.return_value = mock_result
+
+        entries = ["Use tabs", "Use spaces"]
+        result = detect_contradictions(entries)
+
+        self.assertEqual(result, [])
+
+    @patch("lib.semantic_detector.subprocess.run")
+    def test_validates_contradiction_structure(self, mock_run):
+        """Test that invalid contradiction structures are filtered out."""
+        mock_run.return_value = self._mock_claude_response({
+            "contradictions": [
+                {"entry1": "Valid", "entry2": "Also valid", "conflict": "reason"},
+                {"entry1": "Missing entry2"},  # Invalid - missing entry2
+                {"missing_both": "fields"},  # Invalid - missing both
+            ]
+        })
+
+        entries = ["Valid", "Also valid", "Another entry"]
+        result = detect_contradictions(entries)
+
+        # Only the valid contradiction should be returned
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["entry1"], "Valid")
 
 
 if __name__ == "__main__":

@@ -212,7 +212,7 @@ Exit after showing review (don't process learnings).
 
 **If user passed `--dedupe`:**
 
-Scan existing CLAUDE.md files for similar entries that could be consolidated.
+Scan existing CLAUDE.md files for similar entries AND contradictions.
 
 **1. Read both CLAUDE.md files:**
 ```bash
@@ -221,21 +221,51 @@ cat CLAUDE.md 2>/dev/null
 ```
 
 **2. Extract all bullet points:**
-Look for lines starting with `- ` under section headers.
+Look for lines starting with `- ` under section headers. Track line numbers.
 
-**3. Analyze for semantic similarity:**
+**3. Detect contradictions using semantic analysis:**
+
+Use the contradiction detector to find conflicting entries:
+```python
+from lib.semantic_detector import detect_contradictions
+
+# Collect all entries from both files
+entries = [...]  # List of bullet point strings
+
+contradictions = detect_contradictions(entries)
+# Returns: [{"entry1": "...", "entry2": "...", "conflict": "reason"}]
+```
+
+**4. Analyze for semantic similarity:**
 Group entries that:
 - Reference the same tool/model/concept
 - Give overlapping or redundant advice
 - Could be merged without losing information
 
-**4. Present consolidation proposals:**
+**5. Present findings:**
+
 ```
 ═══════════════════════════════════════════════════════════
 CLAUDE.MD DEDUPLICATION SCAN
 ═══════════════════════════════════════════════════════════
 
-Found 2 groups of similar entries:
+⚠️ CONTRADICTIONS FOUND (2)
+────────────────────────────────────────────────────────────
+
+#1: Conflicting indentation preferences
+    Line 12: "- Use tabs for indentation"
+    Line 78: "- Use spaces for indentation"
+    Conflict: opposite indentation preferences
+
+#2: Conflicting model recommendations
+    Line 24: "- Use gpt-5.1 for all tasks"
+    Line 89: "- Prefer Claude for reasoning tasks"
+    Conflict: different model preferences for similar tasks
+
+────────────────────────────────────────────────────────────
+
+SIMILAR ENTRIES (2 groups)
+────────────────────────────────────────────────────────────
 
 Group 1 (Global CLAUDE.md):
   Line 45: "- Use gpt-5.1 for complex tasks"
@@ -247,12 +277,31 @@ Group 2 (Project CLAUDE.md):
   Line 28: "- Create virtual environment for Python"
   → Proposed: "- Use venv for Python projects"
 
-No duplicates: 23 entries are unique
-
+────────────────────────────────────────────────────────────
+Unique entries: 23 (no changes needed)
 ═══════════════════════════════════════════════════════════
 ```
 
-**5. Use AskUserQuestion:**
+**6. Handle contradictions with AskUserQuestion:**
+
+For each contradiction found:
+```json
+{
+  "questions": [{
+    "question": "Contradiction #1: 'Use tabs' vs 'Use spaces' - How to resolve?",
+    "header": "Conflict",
+    "multiSelect": false,
+    "options": [
+      {"label": "Keep first", "description": "Keep 'Use tabs for indentation' (line 12)"},
+      {"label": "Keep second", "description": "Keep 'Use spaces for indentation' (line 78)"},
+      {"label": "Merge", "description": "Create a combined entry that resolves the conflict"},
+      {"label": "Keep both", "description": "Leave both entries (they may apply to different contexts)"}
+    ]
+  }]
+}
+```
+
+**7. Handle similarity groups with AskUserQuestion:**
 ```json
 {
   "questions": [{
@@ -268,8 +317,9 @@ No duplicates: 23 entries are unique
 }
 ```
 
-**6. Apply changes:**
-- Use Edit tool to replace redundant entries with consolidated versions
+**8. Apply changes:**
+- Use Edit tool to resolve contradictions based on user choices
+- Replace redundant entries with consolidated versions
 - Remove duplicate lines
 - Preserve section structure
 
@@ -1170,8 +1220,44 @@ Use these standard headers:
 - `## LLM Model Recommendations` — model names, versions
 - `## Tool Usage` — MCP, APIs, which tool for what
 - `## Project Conventions` — coding style, patterns
+- `## Guardrails` — constraints and "don't do X" rules
 - `## Common Errors to Avoid` — gotchas, mistakes
 - `## Environment Setup` — venv, configs, paths
+
+### Guardrail Routing
+
+Learnings with `type: "guardrail"` are special corrections about unwanted behavior. These should be routed to the `## Guardrails` section in CLAUDE.md.
+
+**Guardrail patterns detected by `reflect_utils.py`:**
+- "don't add X unless I ask" → `dont-unless-asked`
+- "only change what I asked" → `only-what-asked`
+- "stop refactoring unrelated code" → `stop-unrelated`
+- "don't over-engineer" → `dont-over-engineer`
+- "leave X alone" → `leave-alone`
+- "minimal changes only" → `minimal-changes`
+
+**When presenting guardrail learnings:**
+```
+═══════════════════════════════════════════════════════════
+GUARDRAIL DETECTED — Constraint about unwanted behavior
+═══════════════════════════════════════════════════════════
+
+Original: "don't add docstrings unless I explicitly ask"
+Pattern: dont-unless-asked (confidence: 0.90)
+
+Proposed entry for ## Guardrails:
+┌────────────────────────────────────────────────────────┐
+│ - Don't add docstrings to code unless explicitly asked │
+└────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════
+```
+
+**Formatting guardrails:**
+- Present as constraints/rules rather than preferences
+- Use imperative negative form: "Don't X" or "Only do Y when Z"
+- Keep concise and actionable
+- Route to `## Guardrails` section (create if doesn't exist)
 
 ## Size Check
 

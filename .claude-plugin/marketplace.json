@@ -1,5 +1,6 @@
 {
   "name": "claude-reflect-marketplace",
+  "description": "Official marketplace for claude-reflect, a self-learning plugin for Claude Code",
   "owner": {
     "name": "Bayram Annakov"
   },

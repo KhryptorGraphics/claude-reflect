@@ -5,6 +5,27 @@ All notable changes to claude-reflect will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-01-23
+
+### Added
+- **Capture Feedback** - Hooks now output confirmation when learnings are captured (#10)
+  - Example: `📝 Learning captured: 'no, use gpt-5.1 not gpt-5' (confidence: 85%)`
+  - Claude acknowledges captures in real-time
+- **Confidence in /view-queue** - Queue display now shows confidence scores, patterns, and relative timestamps
+  - Format: `[0.85] "message preview..." (pattern-name) - 2 days ago`
+- **Guardrail Pattern Detection** - New pattern type for "don't do X" constraints
+  - Detects: "don't add X unless", "only change what I asked", "stop refactoring unrelated", etc.
+  - Higher confidence (0.85-0.90) for constraint-based corrections
+  - Routes to new `## Guardrails` section in CLAUDE.md
+- **Contradiction Detection** - Semantic analysis to find conflicting CLAUDE.md entries
+  - New `detect_contradictions()` function in semantic_detector.py
+  - Integrated into `/reflect --dedupe` workflow
+  - Resolution options: keep first, keep second, merge, or keep both
+
+### Changed
+- `/reflect --dedupe` now checks for contradictions before similarity grouping
+- Added `## Guardrails` to standard section headers
+
 ## [2.1.1] - 2026-01-06
 
 ### Fixed

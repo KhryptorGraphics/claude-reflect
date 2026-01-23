@@ -116,7 +116,7 @@ Session files are JSONL at `~/.claude/projects/[PROJECT_FOLDER]/`:
 
 ```json
 {
-  "type": "auto|explicit|positive",
+  "type": "auto|explicit|positive|guardrail",
   "message": "user's original text",
   "timestamp": "ISO8601",
   "project": "/path/to/project",
@@ -176,3 +176,7 @@ User: "no, always run tests before deploying"
 - **Windows**: Fully supported (native Python, no WSL required)
 
 Requires Python 3.6+.
+
+## Releasing
+
+See [RELEASING.md](RELEASING.md) for version bump checklist and release process.

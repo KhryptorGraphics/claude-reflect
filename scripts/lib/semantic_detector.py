@@ -418,6 +418,126 @@ def validate_tool_errors(
     return validated
 
 
+# =============================================================================
+# Contradiction detection
+# =============================================================================
+
+# Prompt for detecting contradictions in CLAUDE.md entries
+CONTRADICTION_PROMPT = """Analyze these CLAUDE.md entries for contradictions.
+
+Entries:
+{entries}
+
+Find pairs that give OPPOSITE advice about the same topic. A contradiction is when:
+- Two entries give conflicting instructions (e.g., "use tabs" vs "use spaces")
+- Two entries recommend opposite approaches for the same task
+- Two entries have incompatible requirements
+
+Respond ONLY with valid JSON (no markdown, no explanation):
+{{
+  "contradictions": [
+    {{
+      "entry1": "exact text of first entry",
+      "entry2": "exact text of second entry",
+      "conflict": "brief explanation of why these contradict"
+    }}
+  ]
+}}
+
+Rules:
+- Only return ACTUAL contradictions, not just related entries
+- Entries about different topics are NOT contradictions
+- Return empty array if no contradictions found
+- Maximum 10 contradictions"""
+
+
+def detect_contradictions(
+    entries: list,
+    timeout: int = DEFAULT_TIMEOUT,
+    model: Optional[str] = None
+) -> list:
+    """
+    Find semantically contradicting entries in a list of CLAUDE.md entries.
+
+    Args:
+        entries: List of entry strings (bullet points from CLAUDE.md)
+        timeout: Timeout in seconds for the Claude CLI call
+        model: Optional model override (e.g., "sonnet", "haiku")
+
+    Returns:
+        List of contradiction dicts:
+        [{"entry1": "...", "entry2": "...", "conflict": "reason"}]
+        Returns empty list on failure or if no contradictions found.
+    """
+    if not entries or len(entries) < 2:
+        return []
+
+    # Format entries for the prompt
+    entries_text = "\n".join(f"- {e}" for e in entries)
+    prompt = CONTRADICTION_PROMPT.format(entries=entries_text)
+
+    # Build command
+    cmd = ["claude", "-p", "--output-format", "json"]
+    if model:
+        cmd.extend(["--model", model])
+
+    try:
+        result = subprocess.run(
+            cmd,
+            input=prompt,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+        )
+
+        if result.returncode != 0:
+            return []
+
+        output = result.stdout.strip()
+        if not output:
+            return []
+
+        # Parse JSON response
+        try:
+            response = json.loads(output)
+            if isinstance(response, dict) and "result" in response:
+                content = response["result"]
+            else:
+                content = response
+        except json.JSONDecodeError:
+            content = _extract_json_from_text(output)
+            if content is None:
+                return []
+
+        # Extract contradictions
+        if not isinstance(content, dict):
+            return []
+
+        contradictions = content.get("contradictions", [])
+        if not isinstance(contradictions, list):
+            return []
+
+        # Validate each contradiction
+        valid = []
+        for c in contradictions:
+            if isinstance(c, dict) and "entry1" in c and "entry2" in c:
+                valid.append({
+                    "entry1": str(c.get("entry1", "")),
+                    "entry2": str(c.get("entry2", "")),
+                    "conflict": str(c.get("conflict", "Conflicting instructions")),
+                })
+
+        return valid
+
+    except subprocess.TimeoutExpired:
+        return []
+    except FileNotFoundError:
+        return []
+    except Exception:
+        return []
+
+
 if __name__ == "__main__":
     # Simple test when run directly
     if len(sys.argv) > 1:

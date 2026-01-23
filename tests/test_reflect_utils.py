@@ -207,6 +207,57 @@ class TestPatternDetection(unittest.TestCase):
         self.assertEqual(item_type, "auto")
         self.assertGreaterEqual(confidence, 0.75)
 
+    def test_guardrail_dont_add_unless(self):
+        """Test detection of 'don't add X unless' guardrail pattern."""
+        result = detect_patterns("don't add docstrings unless I explicitly ask")
+        item_type, patterns, confidence, sentiment, decay = result
+
+        self.assertEqual(item_type, "guardrail")
+        self.assertIn("dont-unless-asked", patterns)
+        self.assertGreaterEqual(confidence, 0.90)
+        self.assertEqual(decay, 120)
+
+    def test_guardrail_only_change_what_asked(self):
+        """Test detection of 'only change what I asked' guardrail pattern."""
+        result = detect_patterns("only change what I asked you to change")
+        item_type, patterns, confidence, sentiment, decay = result
+
+        self.assertEqual(item_type, "guardrail")
+        self.assertIn("only-what-asked", patterns)
+        self.assertGreaterEqual(confidence, 0.90)
+
+    def test_guardrail_stop_refactoring(self):
+        """Test detection of 'stop refactoring unrelated' guardrail pattern."""
+        result = detect_patterns("stop refactoring unrelated code")
+        item_type, patterns, confidence, sentiment, decay = result
+
+        self.assertEqual(item_type, "guardrail")
+        self.assertIn("stop-unrelated", patterns)
+
+    def test_guardrail_dont_over_engineer(self):
+        """Test detection of 'don't over-engineer' guardrail pattern."""
+        result = detect_patterns("don't over-engineer this solution")
+        item_type, patterns, confidence, sentiment, decay = result
+
+        self.assertEqual(item_type, "guardrail")
+        self.assertIn("dont-over-engineer", patterns)
+
+    def test_guardrail_leave_alone(self):
+        """Test detection of 'leave X alone' guardrail pattern."""
+        result = detect_patterns("leave the existing code alone")
+        item_type, patterns, confidence, sentiment, decay = result
+
+        self.assertEqual(item_type, "guardrail")
+        self.assertIn("leave-alone", patterns)
+
+    def test_guardrail_minimal_changes(self):
+        """Test detection of 'minimal changes' guardrail pattern."""
+        result = detect_patterns("only make minimal changes please")
+        item_type, patterns, confidence, sentiment, decay = result
+
+        self.assertEqual(item_type, "guardrail")
+        self.assertIn("minimal-changes", patterns)
+
     def test_no_pattern_match(self):
         """Test text without patterns returns None type."""
         result = detect_patterns("Hello, how are you?")
